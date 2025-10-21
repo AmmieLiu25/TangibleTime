@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tangible Time</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #fff;
+      font-family: sans-serif;
+    }
+
+    .scenes {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background: #fff;
+    }
+
+    .scene {
+      position: absolute;
+      inset: 0;
+      display: none;  /* hide all by default */
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      transition: opacity 1.5s ease;
+    }
+    .scene.active {
+      display: flex;  /* only active scene shows */
+      opacity: 1;
+      z-index: 5;
+    }
+
+    #fadeOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(255,255,255,0.8);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 99999;
+      transition: opacity 1s ease;
+    }
+
+    /* Scene backgrounds */
+    .scene1 { background: url("frames/bg1.png") center/cover no-repeat; }
+    .scene2 { background: transparent; z-index: 10; }
+    .scene3 { background: #fff; z-index: 15; }
+    .scene4 { background: #fff; z-index: 20; }
+    .scene5 { background: #fff; z-index: 25; }
+    .scene6 { z-index: 30; }
+    .scene7 { background: #fff; z-index: 35; }
+    .scene8 { background: #fff; z-index: 40; }
+    .scene9 { background: #fff; z-index: 45; }
+    .scene10 { background: #fff; z-index: 50; }
+    .scene11 { background: white; z-index: 55; }
+    .scene12 { background: url("frames12/frame1bg.png") center/cover no-repeat; z-index: 60; }
+
+    /* Frames */
+    .scene1 img,
+    .scene2 img.crack,
+    .scene3 img,
+    .scene4 img,
+    .scene5 img,
+    .scene6 img,
+    .scene7 img,
+    .scene8 img,
+    .scene9 img,
+    .scene10 img,
+    .dockedClone,
+    .dockedFromScene6 {
+      max-width: 100%;
+      max-height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      pointer-events: none;
+    }
+    .visible { opacity: 1 !important; }
+    .scene2 img.crack { z-index: 999; }
+
+    .dockedClone {
+      position: absolute;
+      top: 40px;
+      left: 60px;
+      width: 66vw;
+      height: 66vh;
+      background: url("frames/bg1.png") center/cover no-repeat;
+      z-index: 1;
+      opacity: 0;
+    }
+
+    .dockedFromScene6 {
+      position: absolute;
+      top: 40px;
+      right: 60px;
+      width: 30vw;
+      height: auto;
+      background-size: cover;
+      background-position: center;
+      z-index: 1;
+      opacity: 0;
+    }
+
+    .scene1.shrink {
+      transform: scale(0.66);
+      transform-origin: top left;
+      top: 40px;
+      left: 60px;
+      transition: transform 1.5s ease, top 1.5s ease, left 1.5s ease;
+      z-index: 3;
+    }
+
+    .scene5pinkunder { z-index: 5000; }
+
+    .scene6 .baseFrame,
+    .scene10 .baseFrame {
+      opacity: 1 !important;
+      pointer-events: none;
+      z-index: 1;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+    }
+    .scene6 img:not(.baseFrame),
+    .scene10 img:not(.baseFrame) {
+      z-index: 2;
+    }
+
+    /* Scene 11 (Z-axis space) */
+    .z-space {
+      perspective: 2000px;
+      transform-style: preserve-3d;
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      overflow: hidden;
+    }
+    .z-layer {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) translateZ(var(--depth));
+      transition: transform 0.3s ease;
+    }
+    .z-layer img {
+      max-width: 60vw;
+      max-height: 60vh;
+      display: block;
+      opacity: 0.95;
+      transition: opacity 0.3s ease, filter 0.3s ease;
+    }
+
+    /* Scene 12 collage */
+    .collage {
+      position: relative;
+      width: 90vw;
+      height: 90vh;
+    }
+    .poem-stack {
+      position: absolute;
+      cursor: pointer;
+      perspective: 1200px;
+    }
+    .poem-stack img {
+      position: absolute;
+      width: 520px;
+      box-shadow: 0 6px 15px rgba(255, 255, 255, 0.35);
+      border-radius: 4px;
+      transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s ease;
+    }
+    
+    /* Keep them aligned with only tiny offset */
+    .poem-stack img:nth-child(1) { z-index: 1; transform: rotate(-1deg) translate(0,0); }
+    .poem-stack img:nth-child(2) { z-index: 2; transform: rotate(0deg) translate(0,0); }
+    .poem-stack img:nth-child(3) { z-index: 3; transform: rotate(1deg) translate(0,0); }
+    .poem-stack img:nth-child(4) { z-index: 4; transform: rotate(2deg) translate(0,0); }
+    
+    /* Hover effect: pop upwards with stagger */
+    .poem-stack:hover img {
+      box-shadow: 0 12px 25px rgba(255, 255, 255, 0.35);
+    }
+    .poem-stack:hover img:nth-child(1) { transform: translateY(-60px) rotate(-3deg); transition-delay: 0s; }
+    .poem-stack:hover img:nth-child(2) { transform: translateY(-50px) rotate(-2deg); transition-delay: 0.05s; }
+    .poem-stack:hover img:nth-child(3) { transform: translateY(-40px) rotate(-1deg); transition-delay: 0.1s; }
+    .poem-stack:hover img:nth-child(4) { transform: translateY(-30px) rotate(0deg); transition-delay: 0.15s; }
+    .poem-stack:hover img:nth-child(5) { transform: translateY(-20px) rotate(1deg); transition-delay: 0.2s; }
+    .poem-stack:hover img:nth-child(6) { transform: translateY(-10px) rotate(2deg); transition-delay: 0.25s; }
+    .poem-stack:hover img:nth-child(7) { transform: translateY(0px) rotate(3deg); transition-delay: 0.3s; }
+    .poem-stack:hover img:nth-child(8) { transform: translateY(10px) rotate(4deg); transition-delay: 0.35s; }
+    .poem-stack:hover img:nth-child(9) { transform: translateY(20px) rotate(5deg); transition-delay: 0.4s; }
+    .poem-stack:hover img:nth-child(10) { transform: translateY(30px) rotate(6deg); transition-delay: 0.45s; }
+    .poem-stack:hover img:nth-child(11) { transform: translateY(40px) rotate(7deg); transition-delay: 0.5s; }
+    .poem-stack:hover img:nth-child(12) { transform: translateY(50px) rotate(8deg); transition-delay: 0.55s; }
+    .poem-stack:hover img:nth-child(13) { transform: translateY(60px) rotate(9deg); transition-delay: 0.5s; }
+
+    /* Placement of stacks */
+    .x-poem { top: 15%; left: 0%; }
+    .y-poem { top: 60%; left: 40%; }
+    .z-poem { top: 5%; left: 60%; }
+
+    .bg{
+        z-index:-100;
+    }
+  </style>
+</head>
+<body>
+  <div id="fadeOverlay"></div>
+
+  <div class="scenes">
+    <!-- Scene 1 -->
+    <section class="scene scene1 active">
+      <img data-src="frames/frame1.png" class="visible" />
+      <img data-src="frames/frame2.png" />
+      <img data-src="frames/frame3.png" />
+      <img data-src="frames/frame4.png" />
+      <img data-src="frames/frame5.png" />
+      <img data-src="frames/frame6.png" />
+      <img data-src="frames/frame7.png" />
+      <img data-src="frames/frame8.png" />
+    </section>
+
+    <!-- Scene 2 -->
+    <section class="scene scene2">
+      <img data-src="frames2/frame1.png" class="crack" />
+      <img data-src="frames2/frame2.png" class="crack" />
+      <img data-src="frames2/frame3.png" class="crack" />
+      <img data-src="frames2/frame4.png" class="crack" />
+      <img data-src="frames2/frame5.png" class="crack" />
+      <img data-src="frames2/frame6.png" class="crack" />
+      <img data-src="frames2/frame7.png" class="crack" />
+      <img data-src="frames2/frame8.png" class="crack" />
+      <img data-src="frames2/frame9.png" class="crack" />
+      <img data-src="frames2/frame12pink.png" class="crack" />
+      <img data-src="frames2/frame10.png" class="crack" />
+      <img data-src="frames2/frame11.png" class="crack" />
+      <div class="overlay"></div>
+      <div class="dockedClone"></div>
+    </section>
+
+    <!-- Scene 3 -->
+    <section class="scene scene3">
+      <img data-src="frames3/frame1.png" />
+      <img data-src="frames3/frame2.png" />
+      <img data-src="frames3/frame3.png" />
+      <img data-src="frames3/frame4.png" />
+      <img data-src="frames3/frame5.png" />
+      <img data-src="frames3/frame6.png" />
+      <img data-src="frames3/frame7.png" />
+      <img data-src="frames3/frame8.png" />
+      <img data-src="frames3/frame9.png" />
+      <img data-src="frames3/frame10.png" />
+    </section>
+
+    <!-- Scene 4 -->
+    <section class="scene scene4">
+      <img data-src="frames4/frame1.png" />
+      <img data-src="frames4/frame2.png" />
+      <img data-src="frames4/frame3.png" />
+      <img data-src="frames4/frame4.png" />
+      <img data-src="frames4/frame5.png" />
+      <img data-src="frames4/frame6.png" />
+      <img data-src="frames4/frame7.png" />
+      <img data-src="frames4/frame8.png" />
+      <img data-src="frames4/frame9.png" />
+    </section>
+
+    <!-- Scene 5 -->
+    <section class="scene scene5">
+      <img data-src="frames5/frame1.png" />
+      <img data-src="frames5/frame2.png" />
+      <img data-src="frames5/frame3.png" />
+      <img data-src="frames5/frame4.png" />
+      <img data-src="frames5/frame5.png" class="scene5pinkunder" />
+      <img data-src="frames5/frame6.png" />
+      <img data-src="frames5/frame7.png" />
+      <img data-src="frames5/frame8.png" />
+      <img data-src="frames5/frame9.png" />
+      <img data-src="frames5/frame10.png" />
+      <img data-src="frames5/frame11.png" />
+    </section>
+
+    <!-- Scene 6 -->
+    <section class="scene scene6">
+      <img data-src="frames6/frame1.png" class="baseFrame" />
+      <img data-src="frames6/frame2.png" />
+      <img data-src="frames6/frame3.png" />
+      <img data-src="frames6/frame4.png" />
+      <img data-src="frames6/frame5.png" />
+      <img data-src="frames6/frame6.png" />
+    </section>
+
+    <!-- Scene 7 -->
+    <section class="scene scene7">
+      <div class="dockedFromScene6"></div>
+      <img data-src="frames7/frame1.png" />
+      <img data-src="frames7/frame2.png" />
+      <img data-src="frames7/frame3.png" />
+      <img data-src="frames7/frame4.png" />
+      <img data-src="frames7/frame5.png" />
+      <img data-src="frames7/frame6.png" />
+      <img data-src="frames7/frame7.png" />
+      <img data-src="frames7/frame8.png" />
+      <img data-src="frames7/frame9.png" />
+    </section>
+
+    <!-- Scene 8 -->
+    <section class="scene scene8">
+      <img data-src="frames8/frame1.png" />
+      <img data-src="frames8/frame2.png" />
+      <img data-src="frames8/frame3.png" />
+      <img data-src="frames8/frame4.png" />
+      <img data-src="frames8/frame5.png" />
+      <img data-src="frames8/frame6.png" />
+      <img data-src="frames8/frame7.png" />
+      <img data-src="frames8/frame8.png" />
+    </section>
+
+    <!-- Scene 9 -->
+    <section class="scene scene9">
+      <img data-src="frames9/frame1.png" />
+      <img data-src="frames9/frame2.png" />
+      <img data-src="frames9/frame3.png" />
+      <img data-src="frames9/frame4.png" />
+      <img data-src="frames9/frame5.png" />
+      <img data-src="frames9/frame6.png" />
+      <img data-src="frames9/frame7.png" />
+      <img data-src="frames9/frame8.png" />
+      <img data-src="frames9/frame9.png" />
+      <img data-src="frames9/frame10.png" />
+    </section>
+
+    <!-- Scene 10 -->
+    <section class="scene scene10">
+      <img data-src="frames10/frame1.png" class="baseFrame" />
+      <img data-src="frames10/frame2.png" />
+      <img data-src="frames10/frame3.png" />
+      <img data-src="frames10/frame4.png" />
+      <img data-src="frames10/frame5.png" />
+      <img data-src="frames10/frame6.png" />
+      <img data-src="frames10/frame7.png" />
+      <img data-src="frames10/frame8.png" />
+      <img data-src="frames10/frame9.png" />
+      <img data-src="frames10/frame10.png" />
+    </section>
+
+    <!-- Scene 11 -->
+    <section class="scene scene11">
+      <div class="z-space" id="zSpace">
+        <div class="z-layer" style="--depth: -200px"><img data-src="frames11/frame1.png"></div>
+        <div class="z-layer" style="--depth: -400px"><img data-src="frames11/frame2.png"></div>
+        <div class="z-layer" style="--depth: -600px"><img data-src="frames11/frame3.png"></div>
+        <div class="z-layer" style="--depth: -800px"><img data-src="frames11/frame4.png"></div>
+        <div class="z-layer" style="--depth: -1000px"><img data-src="frames11/frame5.png"></div>
+        <div class="z-layer" style="--depth: -1200px"><img data-src="frames11/frame6.png"></div>
+        <div class="z-layer" style="--depth: -1400px"><img data-src="frames11/frame7.png"></div>
+      </div>
+    </section>
+
+    <!-- Scene 12 collage -->
+    <section class="scene scene12">
+      <div class="collage">
+    <!-- X-axis poem stack -->
+    <div class="poem-stack x-poem" data-target="0">
+      <img data-src="frames2/frame1.png" alt="X poem frame">
+      <img data-src="frames2/frame2.png" alt="X poem frame">
+      <img data-src="frames2/frame3.png" alt="X poem frame">
+      <img data-src="frames2/frame4.png" alt="X poem frame">
+      <img data-src="frames2/frame5.png" alt="X poem frame">
+      <img data-src="frames2/frame6.png" alt="X poem frame">
+      <img data-src="frames2/frame7.png" alt="X poem frame">
+      <img data-src="frames2/frame8.png" alt="X poem frame">
+      <img data-src="frames2/frame9.png" alt="X poem frame">
+      <img data-src="frames2/frame10.png" alt="X poem frame">
+      <img data-src="frames2/frame11.png" alt="X poem frame">
+      <img data-src="frames2/frame12pink.png" alt="X poem frame">
+      <img data-src="frames2/frame13bg.png" alt="X poem frame" class="bg">
+    </div>
+
+    <!-- Y-axis poem stack -->
+    <div class="poem-stack y-poem" data-target="5">
+      <img data-src="frames7/frame1.png" alt="Y poem frame">
+      <img data-src="frames7/frame2.png" alt="Y poem frame">
+      <img data-src="frames7/frame3.png" alt="Y poem frame">
+      <img data-src="frames7/frame4.png" alt="Y poem frame">
+      <img data-src="frames7/frame5.png" alt="Y poem frame">
+      <img data-src="frames7/frame6.png" alt="Y poem frame">
+      <img data-src="frames7/frame7.png" alt="Y poem frame">
+      <img data-src="frames7/frame8.png" alt="Y poem frame">
+      <img data-src="frames7/frame9.png" alt="Y poem frame">
+    </div>
+
+    <!-- Z-axis poem stack -->
+    <div class="poem-stack z-poem" data-target="10">
+      <img src="frames11/frame1.png" alt="Z poem frame">
+      <img src="frames11/frame2.png" alt="Z poem frame">
+      <img src="frames11/frame3.png" alt="Z poem frame">
+      <img src="frames11/frame4.png" alt="Z poem frame">
+      <img src="frames11/frame5.png" alt="Z poem frame">
+      <img src="frames11/frame6.png" alt="Z poem frame">
+    </div>
+  </div>
+    </section>
+  </div>
+
+  <script>
+    const allScenes = document.querySelectorAll(".scene");
+    const fadeOverlay = document.getElementById("fadeOverlay");
+    const dockedClone = document.querySelector(".dockedClone");
+    const dockedFromScene6 = document.querySelector(".dockedFromScene6");
+    const zLayers = document.querySelectorAll(".z-layer");
+
+    let currentScene = 0;
+    let sceneLocked = false;
+    let cameraZ = 0;
+
+    const scenesData = [
+      { frames: document.querySelectorAll(".scene1 img") },
+      { frames: Array.from(document.querySelectorAll(".scene2 img.crack")) },
+      { frames: document.querySelectorAll(".scene3 img") },
+      { frames: document.querySelectorAll(".scene4 img") },
+      { frames: document.querySelectorAll(".scene5 img") },
+      { frames: document.querySelectorAll(".scene6 img") },
+      { frames: document.querySelectorAll(".scene7 img") },
+      { frames: document.querySelectorAll(".scene8 img") },
+      { frames: document.querySelectorAll(".scene9 img") },
+      { frames: document.querySelectorAll(".scene10 img") }
+    ];
+
+    // Lazy load observer
+    function lazyLoadImages() {
+      const lazyImages = document.querySelectorAll("img[data-src]");
+      const config = { rootMargin: "200px", threshold: 0.01 };
+
+      let observer = new IntersectionObserver((entries, self) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const img = entry.target;
+            img.src = img.dataset.src;
+            img.removeAttribute("data-src");
+            self.unobserve(img);
+          }
+        });
+      }, config);
+
+      lazyImages.forEach(img => observer.observe(img));
+    }
+    lazyLoadImages();
+
+    function updateLayers() {
+      zLayers.forEach(layer => {
+        const baseDepth = parseFloat(layer.style.getPropertyValue("--depth"));
+        const relativeZ = baseDepth + cameraZ;
+        layer.style.transform = `translate(-50%, -50%) translateZ(${relativeZ}px)`;
+        const img = layer.querySelector("img");
+        const distance = Math.abs(relativeZ) / 1000;
+        img.style.opacity = Math.max(0, 1 - distance * 0.7);
+        img.style.filter = `blur(${Math.min(distance * 5, 10)}px)`;
+      });
+    }
+
+    function transitionToScene(targetScene, forward = true) {
+      if (targetScene < 0 || targetScene >= allScenes.length || sceneLocked) return;
+      sceneLocked = true;
+      const from = currentScene;
+      const to = targetScene;
+      allScenes[to].style.display = "flex";
+      allScenes[to].classList.add("active");
+      allScenes[to].style.opacity = 0;
+      allScenes[from].style.opacity = 0;
+      setTimeout(() => { allScenes[to].style.opacity = 1; }, 50);
+      setTimeout(() => {
+        allScenes[from].style.display = "none";
+        allScenes[from].classList.remove("active");
+        currentScene = to;
+        sceneLocked = false;
+      }, 1500);
+    }
+
+
+// Throttle helper
+function throttle(func, limit) {
+  let inThrottle;
+  return function (...args) {
+    if (!inThrottle) {
+      func.apply(this, args);
+      inThrottle = true;
+      setTimeout(() => (inThrottle = false), limit);
+    }
+  };
+}
+
+let holdTimer = null;
+const holdDelay = 800; // ms to hold at edge before transitioning
+
+// Throttled mousemove handler
+document.addEventListener(
+  "mousemove",
+  throttle((e) => {
+    if (currentScene < 10) {
+      // Switch between horizontal (scenes 0–4) and vertical (scenes 5–9)
+      const progress =
+        currentScene < 5
+          ? e.clientX / window.innerWidth
+          : e.clientY / window.innerHeight;
+
+      const frames = scenesData[currentScene]?.frames;
+      if (frames) {
+        const total = frames.length;
+        const visibleCount = Math.round(progress * total);
+        frames.forEach((f, i) =>
+          f.classList.toggle("visible", i < visibleCount)
+        );
+
+        if (currentScene === 1) {
+          dockedClone.style.opacity = visibleCount > 0 ? 1 : 0;
+        }
+        if (currentScene === 6) {
+          dockedFromScene6.style.opacity =
+            visibleCount >= 1
+              ? Math.min((progress - 1 / frames.length) * 2, 1)
+              : 0;
+        }
+      }
+
+      // Handle transition with "hold at edge" logic
+      if (progress >= 0.95) {
+        if (!holdTimer) {
+          holdTimer = setTimeout(() => {
+            transitionToScene(currentScene + 1);
+            holdTimer = null;
+          }, holdDelay);
+        }
+      } else if (progress <= 0.05) {
+        if (!holdTimer) {
+          holdTimer = setTimeout(() => {
+            transitionToScene(currentScene - 1);
+            holdTimer = null;
+          }, holdDelay);
+        }
+      } else {
+        // Reset if cursor moves away from edge
+        if (holdTimer) {
+          clearTimeout(holdTimer);
+          holdTimer = null;
+        }
+      }
+    }
+
+    // Special case for Scene 9 -> Scene 10 (leave unchanged)
+    if (currentScene === 9) {
+      const progress = e.clientY / window.innerHeight;
+      if (progress >= 0.95) {
+        transitionToScene(10);
+        cameraZ = 0;
+        updateLayers();
+      }
+    }
+  }, 50) // throttle limit in ms
+);
+
+
+    document.addEventListener("wheel", (e) => {
+  if (currentScene === 10) { // Scene 11
+    cameraZ += e.deltaY * 2;
+    cameraZ = Math.min(Math.max(cameraZ, -2600), 2600);
+    updateLayers();
+
+    if (cameraZ <= -1800) {
+      // Transition back to Scene 10, don't reset cameraZ yet
+      transitionToScene(9, false);
+      // Reset AFTER fade completes
+      setTimeout(() => {
+        cameraZ = 0;
+        updateLayers();
+      }, 1500); // match your transition duration
+    }
+
+    if (cameraZ >= 2600) {
+      // Transition forward to Scene 12, don't reset cameraZ yet
+      transitionToScene(11, true);
+      setTimeout(() => {
+        cameraZ = 0;
+        updateLayers();
+      }, 1500);
+    }
+  }
+});
+
+
+    document.querySelectorAll('.poem-stack').forEach(stack => {
+      stack.addEventListener('click', () => {
+        const target = parseInt(stack.dataset.target, 10);
+
+        // If we're inside the full app, use its transition function:
+        if (typeof window.transitionToScene === 'function') {
+          window.transitionToScene(target, true);
+          return;
+        }
+
+        // Fallback (standalone testing): toggle .active among .scene if present.
+        const scenes = document.querySelectorAll('.scene');
+        if (scenes.length) {
+          scenes.forEach((s, i) => {
+            if (i === target) s.classList.add('active');
+            else s.classList.remove('active');
+          });
+          // optional scroll reset, etc.
+        } else {
+          console.warn('transitionToScene not found and no .scene elements to toggle.');
+        }
+      });
+    });
+
+    
+  </script>
+</body>
+</html>
